@@ -43,16 +43,16 @@ function WalletApp() {
     }
   }, [walletClient, isConnected, publicKey, signingKey])
 
-  // Fetch balance when AO address is available
+  // Fetch balance when connected
   useEffect(() => {
-    if (aoAddress) {
+    if (address) {
       setLoading(true)
-      getArioBalance(aoAddress)
+      getArioBalance(address)
         .then(setBalance)
         .catch((err) => setError('Balance fetch failed: ' + err.message))
         .finally(() => setLoading(false))
     }
-  }, [aoAddress])
+  }, [address])
 
   const handleSend = async () => {
     if (!walletClient || !publicKey || !sendTo || !sendAmount) return
@@ -96,8 +96,10 @@ function WalletApp() {
       // Refresh balance after a delay
       setTimeout(async () => {
         try {
-          const newBalance = await getArioBalance(aoAddress)
-          setBalance(newBalance)
+          if (address) {
+            const newBalance = await getArioBalance(address)
+            setBalance(newBalance)
+          }
         } catch {}
       }, 5000)
     } catch (err: any) {
@@ -108,10 +110,10 @@ function WalletApp() {
   }
 
   const refreshBalance = async () => {
-    if (!aoAddress) return
+    if (!address) return
     setLoading(true)
     try {
-      const b = await getArioBalance(aoAddress)
+      const b = await getArioBalance(address)
       setBalance(b)
     } catch (err: any) {
       setError(err.message)
