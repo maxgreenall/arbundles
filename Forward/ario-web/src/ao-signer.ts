@@ -2,7 +2,7 @@
  * ANS-104 DataItem builder + signer for ECDSA/Ethereum wallets.
  * Signs via injected wallet (MetaMask etc.) using personal_sign.
  */
-import { WalletClient } from 'viem'
+import type { WalletClient } from 'viem'
 import { Buffer } from 'buffer'
 
 // ---- Tag Serialization (Avro-like, matches arbundles) ----
@@ -24,7 +24,7 @@ function serializeTags(tags: { name: string; value: string }[]): Uint8Array {
 // ---- Deep Hash (matches arbundles) ----
 
 async function sha384(data: Uint8Array): Promise<Uint8Array> {
-  const hash = await crypto.subtle.digest('SHA-384', data as ArrayBufferView<ArrayBuffer>)
+  const hash = await crypto.subtle.digest('SHA-384', data as unknown as ArrayBuffer)
   return new Uint8Array(hash)
 }
 
