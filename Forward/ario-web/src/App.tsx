@@ -56,7 +56,14 @@ function WalletApp() {
   }, [address])
 
   const handleSend = async () => {
-    if (!walletClient || !sendTo || !sendAmount) return
+    if (!sendTo || !sendAmount) {
+      setError('Please fill in recipient and amount')
+      return
+    }
+    if (!walletClient) {
+      setError('Wallet client not ready — try again in a moment')
+      return
+    }
 
     setSending(true)
     setError(null)
