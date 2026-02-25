@@ -4,12 +4,13 @@
 import { ARIO_PROCESS, MU_URL, CU_URL } from './config'
 
 /**
- * Query ARIO balance for an AO address via the CU (dry-run).
+ * Query ARIO balance for an address via the CU (dry-run).
+ * Retries on 429 with exponential backoff.
  */
-export async function getArioBalance(aoAddress: string): Promise<string> {
+export async function getArioBalance(address: string, retries = 3): Promise<string> {
   const tags = [
     { name: 'Action', value: 'Balance' },
-    { name: 'Recipient', value: aoAddress },
+    { name: 'Recipient', value: address },
     { name: 'Data-Protocol', value: 'ao' },
     { name: 'Type', value: 'Message' },
     { name: 'Variant', value: 'ao.TN.1' },
@@ -18,36 +19,41 @@ export async function getArioBalance(aoAddress: string): Promise<string> {
   const body = {
     Id: '0000000000000000000000000000000000000000001',
     Target: ARIO_PROCESS,
-    Owner: aoAddress,
+    Owner: address,
     Anchor: '0',
     Data: '',
     Tags: tags.map(t => ({ name: t.name, value: t.value })),
   }
 
-  const res = await fetch(`${CU_URL}/dry-run?process-id=${ARIO_PROCESS}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch(`${CU_URL}/dry-run?process-id=${ARIO_PROCESS}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
 
-  if (!res.ok) {
-    throw new Error(`CU dry-run failed: ${res.status}`)
-  }
-
-  const result = await res.json()
-
-  // Look for balance in Messages
-  if (result.Messages && result.Messages.length > 0) {
-    const msg = result.Messages[0]
-    // Balance is in the Data field or in tags
-    if (msg.Data) {
-      return msg.Data
+    if (res.status === 429 && attempt < retries) {
+      await new Promise(r => setTimeout(r, 2000 * (attempt + 1)))
+      continue
     }
-    const balTag = msg.Tags?.find((t: any) => t.name === 'Balance')
-    if (balTag) return balTag.value
+
+    if (!res.ok) {
+      throw new Error(`CU dry-run failed: ${res.status}`)
+    }
+
+    const result = await res.json()
+
+    if (result.Messages && result.Messages.length > 0) {
+      const msg = result.Messages[0]
+      if (msg.Data) return msg.Data
+      const balTag = msg.Tags?.find((t: any) => t.name === 'Balance')
+      if (balTag) return balTag.value
+    }
+
+    return '0'
   }
 
-  return '0'
+  throw new Error('CU dry-run rate limited after retries')
 }
 
 /**

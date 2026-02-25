@@ -43,15 +43,16 @@ function WalletApp() {
     }
   }, [walletClient, isConnected, publicKey, signingKey])
 
-  // Fetch balance when connected
+  // Fetch balance when connected (with abort guard)
   useEffect(() => {
-    if (address) {
-      setLoading(true)
-      getArioBalance(address)
-        .then(setBalance)
-        .catch((err) => setError('Balance fetch failed: ' + err.message))
-        .finally(() => setLoading(false))
-    }
+    if (!address) return
+    let cancelled = false
+    setLoading(true)
+    getArioBalance(address)
+      .then((b) => { if (!cancelled) setBalance(b) })
+      .catch((err) => { if (!cancelled) setError('Balance fetch failed: ' + err.message) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [address])
 
   const handleSend = async () => {
