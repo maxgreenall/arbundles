@@ -171,7 +171,7 @@ function WalletApp() {
         )}
       </div>
 
-      {aoAddress && (
+      {address && (
         <>
           <div className="card balance-card">
             <div className="balance-header">
@@ -213,7 +213,7 @@ function WalletApp() {
 
             <button
               onClick={handleSend}
-              disabled={sending || !sendTo || !sendAmount}
+              disabled={sending || !sendTo || !sendAmount || !publicKey}
               className="btn btn-primary btn-full"
             >
               {sending ? 'Signing & Sending...' : 'Send ARIO'}
