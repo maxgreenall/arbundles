@@ -3,25 +3,11 @@
  */
 import { ARIO_PROCESS, MU_URL, CU_URL } from './config'
 
-// Deduplicate concurrent balance requests for the same address
-const pendingBalanceFetches = new Map<string, Promise<string>>()
-
 /**
  * Query ARIO balance for an address via the CU (dry-run).
- * Deduplicates concurrent requests and retries on 429.
+ * Retries on 429 with exponential backoff.
  */
-export async function getArioBalance(address: string): Promise<string> {
-  const existing = pendingBalanceFetches.get(address)
-  if (existing) return existing
-
-  const promise = _fetchBalance(address).finally(() => {
-    pendingBalanceFetches.delete(address)
-  })
-  pendingBalanceFetches.set(address, promise)
-  return promise
-}
-
-async function _fetchBalance(address: string, retries = 3): Promise<string> {
+export async function getArioBalance(address: string, retries = 3): Promise<string> {
   const tags = [
     { name: 'Action', value: 'Balance' },
     { name: 'Recipient', value: address },
@@ -47,7 +33,7 @@ async function _fetchBalance(address: string, retries = 3): Promise<string> {
     })
 
     if (res.status === 429 && attempt < retries) {
-      await new Promise(r => setTimeout(r, 3000 * (attempt + 1)))
+      await new Promise(r => setTimeout(r, 2000 * (attempt + 1)))
       continue
     }
 
