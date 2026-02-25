@@ -56,13 +56,22 @@ function WalletApp() {
   }, [address])
 
   const handleSend = async () => {
-    if (!walletClient || !publicKey || !sendTo || !sendAmount) return
+    if (!walletClient || !sendTo || !sendAmount) return
 
     setSending(true)
     setError(null)
     setTxId(null)
 
     try {
+      // Recover public key on-demand if not already available
+      let pk = publicKey
+      if (!pk) {
+        pk = await recoverPublicKey(walletClient)
+        setPublicKey(pk)
+        const addr = await deriveAOAddress(pk)
+        setAoAddress(addr)
+      }
+
       // Convert display amount to mARIO
       const parts = sendAmount.split('.')
       let mario: string
@@ -84,7 +93,7 @@ function WalletApp() {
 
       const anchor = Math.round(Date.now() / 1000).toString().padStart(32, '0')
 
-      const { raw, id } = await createAndSignDataItem(walletClient, publicKey, {
+      const { raw, id } = await createAndSignDataItem(walletClient, pk, {
         target: ARIO_PROCESS,
         tags,
         data: '',
@@ -214,7 +223,7 @@ function WalletApp() {
 
             <button
               onClick={handleSend}
-              disabled={sending || !sendTo || !sendAmount || !publicKey}
+              disabled={sending || !sendTo || !sendAmount}
               className="btn btn-primary btn-full"
             >
               {sending ? 'Signing & Sending...' : 'Send ARIO'}
