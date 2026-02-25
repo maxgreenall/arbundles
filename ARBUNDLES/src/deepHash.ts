@@ -25,18 +25,31 @@ export async function deepHash(data: DeepHashChunk): Promise<Uint8Array> {
 
     return await getCryptoDriver().hash(taggedHash, "SHA-384");
   } else if (Array.isArray(data)) {
+    console.log("=== DeepHash Array Processing ===");
+    console.log("Array length:", data.length);
+    
     const tag = concatBuffers([stringToBuffer("list"), stringToBuffer(data.length.toString())]);
-
+    console.log("List tag hex:", Buffer.from(tag).toString('hex'));
+    
     return await deepHashChunks(data, await getCryptoDriver().hash(tag, "SHA-384"));
   }
 
   const _data = data as Uint8Array;
+  console.log("=== DeepHash Blob Processing ===");
+  console.log("Data length:", _data.byteLength);
+  console.log("Data hex:", Buffer.from(_data).toString('hex'));
 
   const tag = concatBuffers([stringToBuffer("blob"), stringToBuffer(_data.byteLength.toString())]);
+  console.log("Blob tag hex:", Buffer.from(tag).toString('hex'));
 
   const taggedHash = concatBuffers([await getCryptoDriver().hash(tag, "SHA-384"), await getCryptoDriver().hash(_data, "SHA-384")]);
+  console.log("Tagged hash hex:", Buffer.from(taggedHash).toString('hex'));
 
-  return await getCryptoDriver().hash(taggedHash, "SHA-384");
+  const result = await getCryptoDriver().hash(taggedHash, "SHA-384");
+  console.log("Final hash result hex:", Buffer.from(result).toString('hex'));
+  console.log("===============================");
+  
+  return result;
 }
 
 export async function deepHashChunks(chunks: DeepHashChunks, acc: Uint8Array): Promise<Uint8Array> {

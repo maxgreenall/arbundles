@@ -64,10 +64,17 @@ export async function bundleAndSignData(dataItems: DataItem[], signer: Signer): 
  * @returns signings - signature and id in byte-arrays
  */
 export async function getSignatureAndId(item: DataItem, signer: Signer): Promise<{ signature: Buffer; id: Buffer }> {
+  console.log("=== JavaScript Signing Process ===");
   const signatureData = await getSignatureData(item);
+  console.log("Signature data ready, length:", signatureData.length);
 
   const signatureBytes = await signer.sign(signatureData);
+  console.log("ECDSA signature hex:", Buffer.from(signatureBytes).toString('hex'));
+  console.log("ECDSA signature length:", signatureBytes.length);
+  
   const idBytes = await getCryptoDriver().hash(signatureBytes);
+  console.log("DataItem ID hex:", Buffer.from(idBytes).toString('hex'));
+  console.log("==================================");
 
   return { signature: Buffer.from(signatureBytes), id: Buffer.from(idBytes) };
 }
