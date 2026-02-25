@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 
+// NOTE: Arweave L1 transactions only support RSA-4096 signatures natively.
+// secp256k1/ECDSA signing only works for ANS-104 DataItems (bundles), not L1 txs.
+// This script will fail at setSignature() because the wasm-secp256k1 driver
+// returns a DER-encoded signature, not the raw format Arweave expects.
+// Use eth-signer-ao.js for ECDSA signing via ANS-104 data items instead.
+
 const Arweave = require('arweave');
 
 // Hardcoded private key (same as AO script)

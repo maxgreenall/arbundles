@@ -5,7 +5,9 @@ const { result } = require("@permaweb/aoconnect");
 const privateKey = "3afdfe893b2680adc1eda213dbc94ba07b7f923fcb42afe13956f7ac7f619344";
 
 const AO_ENDPOINT = "https://mu.ao-testnet.xyz/";
-const TARGET_PROCESS = "9ai0H84llH-hgtgAGhdBxbTkOCNc0xGJODLq418pGa0";
+// Original test process is no longer whitelisted on MU (Feb 22 2026 whitelist update)
+// Using ARIO token process which is whitelisted
+const TARGET_PROCESS = "qNvAoz0TgcH7DMg8BCVn8jF32QH5L6T29VjHxhHqqGE";
 
 async function main() {
   try {
@@ -17,7 +19,7 @@ async function main() {
       { name: "Data-Protocol", value: "ao" },
       { name: "Variant", value: "ao.TN.1" },
       { name: "Type", value: "Message" },
-      { name: "Action", value: "Hello" }
+      { name: "Action", value: "Balance" }
     ];
 
     const anchor = Math.round(Date.now() / 1000).toString().padStart(32, Math.floor(Math.random() * 10).toString());
@@ -50,7 +52,12 @@ async function main() {
       body: dataItem.getRaw()
     });
 
-    const res = await response.json();
+    const resText = await response.text();
+    console.log("Response status:", response.status);
+    console.log("Response body:", resText);
+    
+    let res;
+    try { res = JSON.parse(resText); } catch { res = {}; }
     let id = res.id;
 
     if (id) {
