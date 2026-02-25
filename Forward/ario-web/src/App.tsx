@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react'
 import { WagmiProvider } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { config, ARIO_PROCESS } from './config'
-import { useAccount, useConnect, useDisconnect, useWalletClient } from 'wagmi'
-import { recoverPublicKey, deriveAOAddress, createAndSignDataItem } from './ao-signer'
+import { useAccount, useConnect, useDisconnect } from 'wagmi'
+import { getOrCreateSigner, deriveAOAddress, createAndSignDataItem, resetSigner } from './ao-signer'
 import { getArioBalance, sendToMU, formatArioBalance } from './ao-utils'
 import './App.css'
 
@@ -13,9 +13,7 @@ function WalletApp() {
   const { address, isConnected } = useAccount()
   const { connect, connectors } = useConnect()
   const { disconnect } = useDisconnect()
-  const { data: walletClient } = useWalletClient()
 
-  const [publicKey, setPublicKey] = useState<Uint8Array | null>(null)
   const [aoAddress, setAoAddress] = useState<string>('')
   const [balance, setBalance] = useState<string>('0')
   const [loading, setLoading] = useState(false)
@@ -24,26 +22,8 @@ function WalletApp() {
   const [sending, setSending] = useState(false)
   const [txId, setTxId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [signingKey, setSigningKey] = useState(false)
 
-  // Recover public key after wallet connect
-  useEffect(() => {
-    if (walletClient && isConnected && !publicKey && !signingKey) {
-      setSigningKey(true)
-      recoverPublicKey(walletClient)
-        .then(async (pk) => {
-          setPublicKey(pk)
-          const addr = await deriveAOAddress(pk)
-          setAoAddress(addr)
-        })
-        .catch((err) => {
-          setError('Failed to recover public key: ' + err.message)
-        })
-        .finally(() => setSigningKey(false))
-    }
-  }, [walletClient, isConnected, publicKey, signingKey])
-
-  // Fetch balance when connected (with abort guard)
+  // Fetch balance when connected
   useEffect(() => {
     if (!address) return
     let cancelled = false
@@ -60,22 +40,18 @@ function WalletApp() {
       setError('Please fill in recipient and amount')
       return
     }
-    if (!walletClient) {
-      setError('Wallet client not ready — try again in a moment')
-      return
-    }
 
     setSending(true)
     setError(null)
     setTxId(null)
 
     try {
-      // Recover public key on-demand if not already available
-      let pk = publicKey
-      if (!pk) {
-        pk = await recoverPublicKey(walletClient)
-        setPublicKey(pk)
-        const addr = await deriveAOAddress(pk)
+      // Get signer (prompts user to sign once to derive public key)
+      const signer = await getOrCreateSigner()
+
+      // Show AO address if not yet shown
+      if (!aoAddress) {
+        const addr = await deriveAOAddress(signer)
         setAoAddress(addr)
       }
 
@@ -98,13 +74,10 @@ function WalletApp() {
         { name: 'Quantity', value: mario },
       ]
 
-      const anchor = Math.round(Date.now() / 1000).toString().padStart(32, '0')
-
-      const { raw, id } = await createAndSignDataItem(walletClient, pk, {
+      const { raw, id } = await createAndSignDataItem({
         target: ARIO_PROCESS,
         tags,
         data: '',
-        anchor,
       })
 
       const result = await sendToMU(raw)
@@ -166,7 +139,7 @@ function WalletApp() {
       <div className="card">
         <div className="card-header">
           <h3>Connected</h3>
-          <button onClick={() => { disconnect(); setPublicKey(null); setAoAddress('') }} className="btn btn-sm">
+          <button onClick={() => { disconnect(); resetSigner(); setAoAddress('') }} className="btn btn-sm">
             Disconnect
           </button>
         </div>
@@ -181,10 +154,6 @@ function WalletApp() {
             <span className="label">AO Address</span>
             <span className="value mono">{aoAddress}</span>
           </div>
-        )}
-
-        {signingKey && (
-          <p className="muted">Sign the message in your wallet to derive your AO address...</p>
         )}
       </div>
 
@@ -210,7 +179,7 @@ function WalletApp() {
               <label>Recipient (AO Address)</label>
               <input
                 type="text"
-                placeholder="Base64url address..."
+                placeholder="Address..."
                 value={sendTo}
                 onChange={(e) => setSendTo(e.target.value)}
                 className="input"
