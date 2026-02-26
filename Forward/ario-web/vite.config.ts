@@ -6,16 +6,16 @@ export default defineConfig({
   plugins: [
     react(),
     nodePolyfills({
-      include: ['buffer', 'crypto', 'stream', 'process', 'util'],
+      include: ['buffer', 'crypto', 'stream', 'process', 'util', 'string_decoder', 'events'],
       globals: { Buffer: true, global: true, process: true },
+      overrides: {
+        crypto: 'crypto-browserify',
+      },
     }),
   ],
-  define: {
-    'global': 'globalThis',
-  },
   resolve: {
     alias: {
-      buffer: 'buffer',
+      crypto: 'crypto-browserify',
     },
   },
 })
